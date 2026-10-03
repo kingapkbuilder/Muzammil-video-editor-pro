@@ -7,8 +7,12 @@ on:
 
 jobs:
   build-apk:
-    name: Build Android Release & Debug APK
+    name: Build Android Debug APK
     runs-on: ubuntu-latest
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout Repository
@@ -18,39 +22,37 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: 17
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Install Dependencies
         run: |
-          npm ci || npm install
-          npm install -D @capacitor/core @capacitor/cli @capacitor/android
+          npm install --legacy-peer-deps
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Build Web Application
         run: npm run build
 
-      - name: Initialize Capacitor Android Project
+      - name: Setup Capacitor Android
         run: |
-          npx cap add android || true
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
-      - name: Build Android APK with Gradle
-        working-directory: android
+      - name: Build Android Debug APK with Gradle
         run: |
+          cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Android Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: MuzammilVideoEditor-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
